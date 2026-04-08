@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import SportPage from "./pages/SportPage";
+import SkillPage from "./pages/SkillPage";
 import Contact from "./pages/Contact";
 import NotFound from "./pages/NotFound";
 
@@ -28,6 +29,7 @@ const App = () => (
               <Route path="/login" element={<Login />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/sport/:sport" element={<SportPage />} />
+              <Route path="/sport/:sport/:skill" element={<SkillPage />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
