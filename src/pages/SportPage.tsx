@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getUser, getProgress, updateProgress, type Sport, type SportProgress } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Camera, Play, Trophy, BarChart3 } from "lucide-react";
+import { Camera, Play, Trophy, BarChart3, Square, Video } from "lucide-react";
 import { toast } from "sonner";
 
 const instructions: Record<Sport, string[]> = {
