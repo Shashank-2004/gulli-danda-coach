@@ -38,7 +38,9 @@ const SportPage = () => {
         streamRef.current.getTracks().forEach((t) => t.stop());
       }
     };
-  }, []);
+  if (!user || !progress || !sport) return null;
+  const s = sport as Sport;
+
 
   const startCamera = useCallback(async () => {
     try {
