@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { getUser, getProgress, updateProgress, type Sport, type SportProgress } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Camera, Play, Trophy, BarChart3, Square, Video } from "lucide-react";
+import { Camera, Play, Trophy, BarChart3, Square } from "lucide-react";
 import { toast } from "sonner";
 
 const instructions: Record<Sport, string[]> = {
@@ -31,20 +31,22 @@ const SportPage = () => {
     setProgress(all.find((p) => p.sport === sport) || null);
   }, [sport]);
 
-  // Cleanup camera on unmount
   useEffect(() => {
     return () => {
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((t) => t.stop());
       }
     };
-  if (!user || !progress || !sport) return null;
-  const s = sport as Sport;
+  }, []);
 
+  const s = sport as Sport;
 
   const startCamera = useCallback(async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: false,
+      });
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
@@ -52,7 +54,7 @@ const SportPage = () => {
       setCameraActive(true);
       setPracticing(true);
       toast.success("Camera activated! Practice session started.");
-    } catch (err) {
+    } catch {
       toast.error("Camera access denied. Please allow camera permission and try again.");
     }
   }, []);
@@ -72,6 +74,8 @@ const SportPage = () => {
     toast.success("Practice session completed! Score updated.");
   }, [s]);
 
+  if (!user || !progress || !sport) return null;
+
   return (
     <div className="container mx-auto px-4 py-10">
       <div className="mb-8 flex items-center gap-4">
@@ -83,20 +87,40 @@ const SportPage = () => {
       </div>
 
       <div className="grid gap-8 lg:grid-cols-3">
-        {/* Main area */}
         <div className="lg:col-span-2 space-y-6">
-          {/* AI Camera placeholder */}
-          <div className="rounded-xl border-2 border-dashed border-border bg-muted/50 p-10 text-center">
-            <Camera size={48} className="mx-auto text-muted-foreground" />
-            <h3 className="mt-4 font-display text-lg font-semibold text-foreground">AI Camera Tracking</h3>
-            <p className="mt-1 text-sm text-muted-foreground">Pose estimation integration coming soon. Practice with guided drills below.</p>
-            <Button onClick={handlePractice} disabled={practicing} className="mt-6 gradient-saffron text-primary-foreground border-0 gap-2">
-              {practicing ? (
-                <>Analyzing... <span className="animate-spin">⏳</span></>
-              ) : (
-                <><Play size={16} /> Start Practice Session</>
-              )}
-            </Button>
+          {/* AI Camera Section */}
+          <div className="rounded-xl border-2 border-border bg-card overflow-hidden">
+            {cameraActive ? (
+              <div className="relative">
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="w-full aspect-video bg-black object-cover"
+                />
+                <div className="absolute top-3 left-3 flex items-center gap-2 rounded-full bg-red-600 px-3 py-1 text-xs font-bold text-white animate-pulse">
+                  <span className="h-2 w-2 rounded-full bg-white" />
+                  LIVE
+                </div>
+                <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent p-4 flex justify-center">
+                  <Button onClick={stopCamera} variant="destructive" className="gap-2">
+                    <Square size={16} /> Stop Session
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="p-10 text-center border-dashed border-2 border-border bg-muted/50 rounded-xl">
+                <Camera size={48} className="mx-auto text-muted-foreground" />
+                <h3 className="mt-4 font-display text-lg font-semibold text-foreground">AI Camera Tracking</h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Your camera will activate to track your movements during practice.
+                </p>
+                <Button onClick={startCamera} disabled={practicing} className="mt-6 gradient-saffron text-primary-foreground border-0 gap-2">
+                  <Play size={16} /> Start Practice Session
+                </Button>
+              </div>
+            )}
           </div>
 
           {/* Instructions */}
@@ -117,7 +141,6 @@ const SportPage = () => {
 
         {/* Sidebar */}
         <div className="space-y-6">
-          {/* Performance card */}
           <div className="rounded-xl border border-border bg-card p-6">
             <div className="flex items-center gap-2 mb-4">
               <Trophy size={20} className="text-primary" />
@@ -130,7 +153,6 @@ const SportPage = () => {
             <Progress value={progress.score} className="mt-4 h-3" />
           </div>
 
-          {/* Stats */}
           <div className="rounded-xl border border-border bg-card p-6">
             <div className="flex items-center gap-2 mb-4">
               <BarChart3 size={20} className="text-secondary" />
