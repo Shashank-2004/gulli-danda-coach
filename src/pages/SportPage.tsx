@@ -21,6 +21,9 @@ const SportPage = () => {
   const user = getUser();
   const [progress, setProgress] = useState<SportProgress | null>(null);
   const [practicing, setPracticing] = useState(false);
+  const [cameraActive, setCameraActive] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
     if (!user) { navigate("/login"); return; }
@@ -28,18 +31,44 @@ const SportPage = () => {
     setProgress(all.find((p) => p.sport === sport) || null);
   }, [sport]);
 
-  if (!user || !progress || !sport) return null;
-  const s = sport as Sport;
+  // Cleanup camera on unmount
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => t.stop());
+      }
+    };
+  }, []);
 
-  const handlePractice = () => {
-    setPracticing(true);
-    setTimeout(() => {
-      const updated = updateProgress(s);
-      setProgress(updated.find((p) => p.sport === s) || null);
-      setPracticing(false);
-      toast.success("Practice session completed! Score updated.");
-    }, 3000);
-  };
+  const startCamera = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+      setCameraActive(true);
+      setPracticing(true);
+      toast.success("Camera activated! Practice session started.");
+    } catch (err) {
+      toast.error("Camera access denied. Please allow camera permission and try again.");
+    }
+  }, []);
+
+  const stopCamera = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    setCameraActive(false);
+    setPracticing(false);
+    const updated = updateProgress(s);
+    setProgress(updated.find((p) => p.sport === s) || null);
+    toast.success("Practice session completed! Score updated.");
+  }, [s]);
 
   return (
     <div className="container mx-auto px-4 py-10">
