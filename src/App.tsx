@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import SportPage from "./pages/SportPage";
+import SkillPage from "./pages/SkillPage";
 import Contact from "./pages/Contact";
 import NotFound from "./pages/NotFound";
 
