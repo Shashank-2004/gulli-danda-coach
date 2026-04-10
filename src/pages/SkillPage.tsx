@@ -1,5 +1,9 @@
+import { useRef } from "react";
 import { useParams, Navigate } from "react-router-dom";
 import { getUser } from "@/lib/auth";
+import { useCamera } from "@/hooks/use-camera";
+import { Button } from "@/components/ui/button";
+import { Camera, Play, Square, Loader2, AlertTriangle } from "lucide-react";
 
 const skillLabels: Record<string, Record<string, string>> = {
   cricket: { "straight-drive": "Straight Drive", "pull-shot": "Pull Shot", "sweep-shot": "Sweep Shot" },
@@ -11,6 +15,8 @@ const skillLabels: Record<string, Record<string, string>> = {
 const SkillPage = () => {
   const { sport, skill } = useParams<{ sport: string; skill: string }>();
   const user = getUser();
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const camera = useCamera(videoRef);
 
   if (!user) return <Navigate to="/login" replace />;
   if (!sport || !skill || !skillLabels[sport]?.[skill]) return <Navigate to="/" replace />;
@@ -27,12 +33,49 @@ const SkillPage = () => {
         <div>
           <h2 className="mb-2 text-lg font-semibold">Practice Instructions</h2>
           <p className="text-muted-foreground text-sm leading-relaxed">
-            Focus on proper form and technique for <strong>{label}</strong>. Position your device so the AI camera can track your full body movement. Follow the on-screen guidance during your practice session.
+            Focus on proper form and technique for <strong>{label}</strong>. Position your device so the AI camera can track your full body movement.
           </p>
         </div>
 
-        <div className="flex aspect-video items-center justify-center rounded-lg border-2 border-dashed border-border bg-muted/30">
-          <p className="text-muted-foreground text-sm">AI Camera Tracking — Coming Soon</p>
+        {/* Camera Section */}
+        <div className="rounded-lg border-2 border-border overflow-hidden">
+          {camera.isActive ? (
+            <div className="relative">
+              <video ref={videoRef} autoPlay playsInline muted className="w-full aspect-video bg-black object-cover" />
+              <div className="absolute top-3 left-3 flex items-center gap-2 rounded-full bg-red-600 px-3 py-1 text-xs font-bold text-white animate-pulse">
+                <span className="h-2 w-2 rounded-full bg-white" /> LIVE
+              </div>
+              <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent p-4 flex justify-center">
+                <Button onClick={camera.stop} variant="destructive" className="gap-2">
+                  <Square size={16} /> Stop Session
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex aspect-video flex-col items-center justify-center bg-muted/30 p-6 text-center">
+              {camera.isLoading ? (
+                <>
+                  <Loader2 size={40} className="text-primary animate-spin" />
+                  <p className="mt-3 text-sm text-muted-foreground">Initializing Camera...</p>
+                </>
+              ) : camera.error ? (
+                <>
+                  <AlertTriangle size={40} className="text-destructive" />
+                  <p className="mt-3 text-sm text-destructive">{camera.error}</p>
+                  <Button onClick={camera.start} size="sm" className="mt-3 gap-2"><Play size={14} /> Retry</Button>
+                </>
+              ) : (
+                <>
+                  <Camera size={40} className="text-muted-foreground" />
+                  <p className="mt-3 text-sm text-muted-foreground">AI Camera Tracking</p>
+                  <Button onClick={camera.start} size="sm" className="mt-3 gradient-saffron text-primary-foreground border-0 gap-2">
+                    <Play size={14} /> Start Practice
+                  </Button>
+                </>
+              )}
+              <video ref={camera.isActive ? undefined : videoRef} className="hidden" />
+            </div>
+          )}
         </div>
 
         <div>
