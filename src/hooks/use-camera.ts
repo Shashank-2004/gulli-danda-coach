@@ -1,62 +1,139 @@
 import { useRef, useState, useCallback, useEffect } from "react";
 
-export function useCamera(videoRef: React.RefObject<HTMLVideoElement>) {
+function getCameraErrorMessage(error: unknown) {
+  const err = error as { name?: string };
+
+  if (err?.name === "NotAllowedError") {
+    return "Camera permission denied. Please enable it in your browser settings.";
+  }
+
+  if (err?.name === "NotFoundError") {
+    return "Camera not available on this device.";
+  }
+
+  if (err?.name === "NotReadableError") {
+    return "Camera is already in use by another application.";
+  }
+
+  return "Failed to start camera. Please try again.";
+}
+
+export function useCamera(activeKey: string | null) {
+  const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const requestIdRef = useRef(0);
   const [isActive, setIsActive] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const stop = useCallback(() => {
+  const stopStream = useCallback(() => {
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
     }
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
+
+    const video = videoRef.current;
+    if (video) {
+      video.pause();
+      video.srcObject = null;
     }
+  }, []);
+
+  const stopCamera = useCallback(() => {
+    requestIdRef.current += 1;
+    stopStream();
     setIsActive(false);
     setIsLoading(false);
-  }, [videoRef]);
+  }, [stopStream]);
 
-  const start = useCallback(async () => {
-    stop();
+  const startCamera = useCallback(async () => {
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
+
+    stopStream();
+    setIsActive(false);
     setIsLoading(true);
     setError(null);
 
     try {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error("Camera API unavailable");
+      }
+
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
+        video: {
+          facingMode: "user",
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
         audio: false,
       });
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
+
+      if (requestId !== requestIdRef.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
       }
+
+      const video = videoRef.current;
+      if (!video) {
+        stream.getTracks().forEach((track) => track.stop());
+        throw new Error("Video element not ready");
+      }
+
+      streamRef.current = stream;
+      video.srcObject = stream;
+      video.muted = true;
+      video.autoplay = true;
+      video.playsInline = true;
+
+      if (video.readyState < 1) {
+        await new Promise<void>((resolve) => {
+          video.onloadedmetadata = () => resolve();
+        });
+      }
+
+      await video.play();
+
+      if (requestId !== requestIdRef.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+
       setIsActive(true);
       setIsLoading(false);
-    } catch (err: any) {
-      setIsLoading(false);
-      if (err.name === "NotAllowedError") {
-        setError("Camera permission denied. Please allow camera access in your browser settings.");
-      } else if (err.name === "NotFoundError") {
-        setError("No camera found on this device.");
-      } else if (err.name === "NotReadableError") {
-        setError("Camera is in use by another application.");
-      } else {
-        setError("Failed to start camera. Please try again.");
+    } catch (err) {
+      console.error("Camera Error:", err);
+
+      if (requestId !== requestIdRef.current) {
+        return;
       }
+
+      stopStream();
+      setIsActive(false);
+      setIsLoading(false);
+      setError(getCameraErrorMessage(err));
     }
-  }, [videoRef, stop]);
+  }, [stopStream]);
 
   useEffect(() => {
-    return () => {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((t) => t.stop());
-        streamRef.current = null;
-      }
-    };
-  }, []);
+    if (!activeKey) {
+      stopCamera();
+      return;
+    }
 
-  return { isActive, isLoading, error, start, stop };
+    void startCamera();
+
+    return () => {
+      stopCamera();
+    };
+  }, [activeKey, startCamera, stopCamera]);
+
+  return {
+    videoRef,
+    isActive,
+    isLoading,
+    error,
+    startCamera,
+    stopCamera,
+  };
 }
